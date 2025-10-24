@@ -231,12 +231,17 @@ func main() {
 	fmt.Printf("Uso de CPU por rodada (%% de 1 núcleo): %v\n", cpuUsage)
 	fmt.Println("Valor final de Junk:", junkValue)
 	fmt.Printf("\n--- Médias ---\n")
-	fmt.Printf("Houve race condition?: %t\n", raceConditionOccurred)
+	fmt.Printf("Houve race condition?: %s\n", func() string {
+		if raceConditionOccurred {
+			return "SIM"
+		}
+
+		return "NAO"
+	}())
 	fmt.Printf("Tempo médio por rodada: %.8fs\n", averageElapsedTime)
 	fmt.Printf("Tempo médio de seção crítica por rodada: %.8fs\n", averageCriticalTime)
 	fmt.Printf("Throughput médio global: %.2f ops/s\n", averageThroughput)
-	fmt.Printf("Uso de CPU médio (relativo a 1 núcleo): %.2f %%\n", averageCpuPercent)
-	fmt.Printf("Utilização de CPU média (normalizada para todos os núcleos): %.2f %%\n", averageCpuNormalized)
+	fmt.Printf("Uso de CPU médio global: %.2f %%\n", averageCpuNormalized)
 }
 
 // warmup executa uma versão menor e mais leve do benchmark para preparar o ambiente.

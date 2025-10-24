@@ -36,14 +36,13 @@ public class JavaMutex {
     private static volatile long junkValue = 0;
 
     // Listas para armazenar as métricas de cada rodada do benchmark.
-    private static List<Double> criticalTimes = new ArrayList<>();
-    private static List<Double> elapsedTimes = new ArrayList<>();
+    private static List<Long> criticalTimes = new ArrayList<>();
+    private static List<Long> elapsedTimes = new ArrayList<>();
     private static List<Double> throughputs = new ArrayList<>();
     private static List<Double> cpuUsage = new ArrayList<>();
 
     // Variáveis de configuração lidas do input do usuário.
     private static int numWorkers;
-    private static int numIncrements;
     private static int loopIntensity;
     private static int numExecutions;
 
@@ -53,8 +52,6 @@ public class JavaMutex {
             System.out.println("--- Configuração do Benchmark (Java Mutex com Virtual Threads) ---");
             System.out.print("Número de Workers/Virtual Threads: ");
             numWorkers = scanner.nextInt();
-            System.out.print("Número de Incrementos por Worker: ");
-            numIncrements = scanner.nextInt();
             System.out.print("Intensidade do Loop Interno (Ex: 1000): ");
             loopIntensity = scanner.nextInt();
             System.out.print("Número de rodadas: ");
@@ -71,6 +68,8 @@ public class JavaMutex {
 
         // --- Loop Principal do Benchmark ---
         for (int i = 0; i < numExecutions; i++) {
+            System.gc();
+            System.out.flush();
 
             // 'ExecutorService' gerencia o ciclo de vida das threads.
             // 'newVirtualThreadPerTaskExecutor' cria uma nova Thread Virtual para cada tarefa.
@@ -81,7 +80,6 @@ public class JavaMutex {
 
             // Inicia medição de CPU
             long startCPUTime = osBean.getProcessCpuTime();
-            long startRealTime = System.nanoTime();
 
             long start = System.nanoTime(); // Use System.nanoTime() para medição de tempo.
 
@@ -89,11 +87,10 @@ public class JavaMutex {
             for (int j = 0; j < numWorkers; j++) {
                 executor.submit(() -> {
                     long seed = System.nanoTime();
-                    for (int k = 0; k < numIncrements; k++) {
-                        // A tarefa de cada worker chama o método sincronizado.
-                        long criticalTimeTaken = increment(seed + k);
-                        roundCriticalTime.addAndGet(criticalTimeTaken);
-                    }
+                    // A tarefa de cada worker chama o método sincronizado.
+                    long response = increment(seed);
+                    roundCriticalTime.addAndGet(response);
+
                 });
             }
 
@@ -106,18 +103,17 @@ public class JavaMutex {
 
             long elapsed = System.nanoTime() - start;
 
-            long endRealTime = System.nanoTime();
             long endCPUTime = osBean.getProcessCpuTime();
 
             // --- Coleta de Métricas da Rodada ---
             // Adiciona os resultados da rodada às listas de métricas.
             counters.add(counter);
-            criticalTimes.add(roundCriticalTime.get() / NANOS_TO_SECONDS);
+            criticalTimes.add(roundCriticalTime.get());
 
+            elapsedTimes.add(elapsed);
             double elapsedSeconds = elapsed / NANOS_TO_SECONDS;
-            elapsedTimes.add(elapsedSeconds);
 
-            double throughput = ((double) numWorkers * numIncrements) / elapsedSeconds;
+            double throughput = ((double) numWorkers) / elapsedSeconds;
             throughputs.add(throughput);
 
             double cpuTimeSeconds = (endCPUTime - startCPUTime) / NANOS_TO_SECONDS;
@@ -129,16 +125,18 @@ public class JavaMutex {
         }
 
         // --- Cálculo e Exibição dos Resultados Finais ---
-        double totalElapsed = elapsedTimes.stream().mapToDouble(Double::doubleValue).sum();
-        double avgElapsed = elapsedTimes.stream().mapToDouble(Double::doubleValue).average().orElse(0);
+        double totalElapsed = elapsedTimes.stream().mapToDouble(Long::longValue).sum();
+        double avgElapsed = elapsedTimes.stream().mapToDouble(Long::longValue).average().orElse(0);
 
-        double avgCritical = criticalTimes.stream().mapToDouble(Double::doubleValue).average().orElse(0);
+        double avgCritical = criticalTimes.stream().mapToDouble(Long::longValue).average().orElse(0);
 
-        double totalOps = (double) numWorkers * numIncrements * numExecutions;
-        double avgThroughput = totalOps / totalElapsed;
+        double totalOps = (double) numWorkers * numExecutions;
+        double avgThroughput = totalOps / (totalElapsed / NANOS_TO_SECONDS);
 
         double avgCpuUsage = cpuUsage.stream().mapToDouble(Double::doubleValue).average().orElse(0);
         double finalCpuUsage = (avgCpuUsage / NUM_CPU);
+
+        boolean raceConditionDetected = counters.stream().anyMatch(counter -> counter != numWorkers);
 
         System.out.println("\n--- Resultados Finais (Java Mutex) ---");
         System.out.println("Valores finais do contador por rodada: " + counters);
@@ -148,8 +146,9 @@ public class JavaMutex {
         System.out.printf("Uso de CPU por rodada (%%): %s\n", cpuUsage);
         System.out.println("Valor final de Junk: " + junkValue);
         System.out.println("\n--- Médias ---");
-        System.out.printf("Tempo médio global: %.4fs\n", avgElapsed);
-        System.out.printf("Tempo médio de seção crítica global: %.4fs\n", avgCritical);
+        System.out.printf("Houve race condition?: %s\n", raceConditionDetected ? "SIM" : "NÃO");
+        System.out.printf("Tempo médio global: %.8fs\n", avgElapsed / NANOS_TO_SECONDS);
+        System.out.printf("Tempo médio de seção crítica global: %.8fs\n", avgCritical / NANOS_TO_SECONDS);
         System.out.printf("Throughput médio global: %.2f ops/s\n", avgThroughput);
         System.out.printf("Uso de CPU médio global: %.4f %%\n", finalCpuUsage);
     }
