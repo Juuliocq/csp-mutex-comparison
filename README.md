@@ -26,7 +26,7 @@ A análise confirmou que dentro dos cenários analisados, **não existe um model
 | **Carga Crítica Baixa/Média** (<= 8129 iterações ) | **Java (`synchronized` / Virtual Threads)** | Mostrou vantagem. Em tarefas menos pesadas , o *overhead* de sincronização do Go ainda era o fator limitante. |
 | **Carga Crítica Pesada** (>= 16384 iterações ) | **Go (Channels)** | Obteve uma leve vantagem. Em tarefas mais pesadas, o *overhead* de sincronização do Go tornou-se relativamente menor em relação ao tempo de cálculo. |
 
-**Conclusão Geral:** O modelo de **exclusão mútua com threads virtuais** (Java) mostrou-se mais robusto para um grande volume de tarefas e alta contenção, enquanto o paradigma de **passagem de mensagens** (Go) destacou-se pela eficiência e economia de recursos em menor escala.
+**Conclusão Geral:** O modelo de **exclusão mútua com threads virtuais** (Java) mostrou-se mais robusto para um grande volume de tarefas e alta contenção, embora possa introduzir problemas clássicos de concorrência, enquanto o paradigma de **passagem de mensagens** (Go) destacou-se pela eficiência e economia de recursos em menor escala, assim como a capacidade de resolver problemas de concorrência por design.
 
 ## Estrutura do Repositório
 
